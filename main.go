@@ -62,7 +62,7 @@ func (c *LRUCache) removeLast() {
 
 func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive time.Duration) (err error) {
 	if k := !reflect.ValueOf(key).Comparable(); k {
-		return fmt.Errorf("Error, key type is uncomparable")
+		return fmt.Errorf("AddWithTTL error, key type is uncomparable")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -84,7 +84,7 @@ func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive tim
 }
 func (c *LRUCache) Add(key interface{}, value interface{}) (err error) {
 	if k := !reflect.ValueOf(key).Comparable(); k {
-		return fmt.Errorf("Error, key type is uncomparable")
+		return fmt.Errorf("Add error, key type is uncomparable")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -104,7 +104,7 @@ func (c *LRUCache) Add(key interface{}, value interface{}) (err error) {
 
 func (c *LRUCache) Remove(key interface{}) (err error) {
 	if k := !reflect.ValueOf(key).Comparable(); k {
-		return fmt.Errorf("Error, key type is uncomparable")
+		return fmt.Errorf("Remove error, key type is uncomparable")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -128,25 +128,5 @@ func (c *LRUCache) Cap() int {
 }
 
 func main() {
-	c := NewLRUCache(5)
-	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			c.Add(i, "dsb")
-		}(i)
-	}
-	wg.Wait()
-	time.Sleep(1 * time.Second)
-	c.AddWithTTL(8, 6, 1*time.Second)
-	fmt.Println(c.Cap())
-	e := c.Add([]int{1, 3}, 5)
-	fmt.Println(e.Error())
-	fmt.Println(c.Get([]int{1, 3}))
-	fmt.Println(c.Cap())
-	fmt.Println(c.Get(2))
-	fmt.Println(c.Get(8))
-	time.Sleep(2 * time.Second)
-	fmt.Println(c.Get(8))
+
 }
