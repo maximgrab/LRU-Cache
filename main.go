@@ -11,14 +11,15 @@ type ICache interface {
 	Cap() int
 	Clear()
 	Add(key, value interface{})
-	//AddWithTTL(key, value interface{}, ttl time.Duration)
+	AddWithTTL(key, value interface{}, ttl time.Duration)
 	Get(key interface{}) (value interface{}, ok bool)
 	Remove(key interface{})
 }
 type CacheItem struct {
-	key   interface{}
-	value interface{}
-	time  time.Time
+	key        interface{}
+	value      interface{}
+	time       time.Time
+	timeToLive time.Duration
 }
 type LRUCache struct {
 	cache    map[interface{}]*list.Element
@@ -35,7 +36,7 @@ func NewLRUCache(maxItems int) *LRUCache {
 	}
 }
 
-func (c *LRUCache) Get(key interface{}) (interface{}, bool) {
+func (c *LRUCache) Get(key interface{}) (value interface{}, ok bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e, ok := c.cache[key]; ok {
@@ -53,6 +54,25 @@ func (c *LRUCache) removeLast() {
 	}
 }
 
+func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if e, ok := c.cache[key]; ok {
+		c.list.MoveToFront(e)
+		e.Value.(*CacheItem).value = value
+		return
+	}
+	if c.list.Len() >= c.maxItems {
+		c.removeLast()
+	}
+	item := &CacheItem{key, value, time.Now(), timeToLive}
+	if timeToLive > 0 {
+		time.AfterFunc(timeToLive, func() { c.Remove(key) })
+	}
+	element := c.list.PushFront(item)
+	c.cache[key] = element
+}
+
 func (c *LRUCache) Add(key interface{}, value interface{}) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -62,11 +82,10 @@ func (c *LRUCache) Add(key interface{}, value interface{}) {
 		e.Value.(*CacheItem).value = value
 		return
 	}
-
 	if c.list.Len() >= c.maxItems {
 		c.removeLast()
 	}
-	item := &CacheItem{key, value, time.Now()}
+	item := &CacheItem{key, value, time.Now(), 0}
 	element := c.list.PushFront(item)
 	c.cache[key] = element
 }
@@ -94,20 +113,24 @@ func (c *LRUCache) Cap() int {
 
 func main() {
 	c := NewLRUCache(5)
-	c.Add(1, "sdfsd")
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			c.Add(i, "dsb")
+			//wg.Done()
+		}(i)
+	}
+	wg.Wait()
+	time.Sleep(1 * time.Second)
+	c.AddWithTTL(8, 6, 1*time.Second)
 	fmt.Println(c.Cap())
 	c.Add(2, "sdfs2d")
-	c.Add(3, "sdfs4d")
 	fmt.Println(c.Cap())
-	c.Add(4, "sdfs5d")
-	c.Add(5, "sdfs6d")
-	c.Add(6, "sdfs6d")
-	fmt.Println(c.Cap())
-	c.Remove(6)
-	fmt.Println(c.Cap())
-	c.Clear()
-	fmt.Println(c.Cap())
+	fmt.Println(c.Get(2))
+	fmt.Println(c.Get(8))
+	time.Sleep(2 * time.Second)
+	fmt.Println(c.Get(8))
 
-	v, _ := c.Get(6)
-	fmt.Println(v)
 }
