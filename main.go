@@ -3,6 +3,7 @@ package main
 import (
 	"container/list"
 	"fmt"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -15,17 +16,19 @@ type ICache interface {
 	Get(key interface{}) (value interface{}, ok bool)
 	Remove(key interface{})
 }
-type CacheItem struct {
-	key        interface{}
-	value      interface{}
-	time       time.Time
-	timeToLive time.Duration
-}
+
 type LRUCache struct {
 	cache    map[interface{}]*list.Element
 	maxItems int
 	list     *list.List
 	mu       sync.Mutex
+}
+
+type CacheItem struct {
+	key        interface{}
+	value      interface{}
+	time       time.Time
+	timeToLive time.Duration
 }
 
 func NewLRUCache(maxItems int) *LRUCache {
@@ -37,6 +40,9 @@ func NewLRUCache(maxItems int) *LRUCache {
 }
 
 func (c *LRUCache) Get(key interface{}) (value interface{}, ok bool) {
+	if k := !reflect.ValueOf(key).Comparable(); k {
+		return nil, false
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e, ok := c.cache[key]; ok {
@@ -72,11 +78,12 @@ func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive tim
 	element := c.list.PushFront(item)
 	c.cache[key] = element
 }
-
-func (c *LRUCache) Add(key interface{}, value interface{}) {
+func (c *LRUCache) Add(key interface{}, value interface{}) (err error) {
+	if k := !reflect.ValueOf(key).Comparable(); k {
+		return fmt.Errorf("Error, key type is uncomparable")
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
 	if e, ok := c.cache[key]; ok {
 		c.list.MoveToFront(e)
 		e.Value.(*CacheItem).value = value
@@ -88,6 +95,7 @@ func (c *LRUCache) Add(key interface{}, value interface{}) {
 	item := &CacheItem{key, value, time.Now(), 0}
 	element := c.list.PushFront(item)
 	c.cache[key] = element
+	return nil
 }
 
 func (c *LRUCache) Remove(key interface{}) {
@@ -119,18 +127,18 @@ func main() {
 		go func(i int) {
 			defer wg.Done()
 			c.Add(i, "dsb")
-			//wg.Done()
 		}(i)
 	}
 	wg.Wait()
 	time.Sleep(1 * time.Second)
 	c.AddWithTTL(8, 6, 1*time.Second)
 	fmt.Println(c.Cap())
-	c.Add(2, "sdfs2d")
+	e := c.Add([]int{1, 3}, 5)
+	fmt.Println(e.Error())
+	fmt.Println(c.Get([]int{1, 3}))
 	fmt.Println(c.Cap())
 	fmt.Println(c.Get(2))
 	fmt.Println(c.Get(8))
 	time.Sleep(2 * time.Second)
 	fmt.Println(c.Get(8))
-
 }
