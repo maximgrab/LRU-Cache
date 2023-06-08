@@ -69,6 +69,17 @@ func TestTTL(t *testing.T) {
 	v, ok := val.(int)
 	assert.True(t, ok)
 	assert.Equal(t, 20, v)
+
+	c.Remove("test")
+	c.AddWithTTL("test", 5, time.Second)
+	c.Remove("test")
+	c.AddWithTTL("test", 20, time.Second*2)
+	<-time.After(1 * time.Millisecond * 1500)
+	val, ok = c.Get("test")
+	assert.True(t, ok)
+	v, ok = val.(int)
+	assert.True(t, ok)
+	assert.Equal(t, 20, v)
 }
 
 func TestAddWithTTL(t *testing.T) {

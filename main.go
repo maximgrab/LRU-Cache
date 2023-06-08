@@ -83,7 +83,6 @@ func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive tim
 			c.mu.Lock()
 			e, ok := c.cache[key]
 			c.mu.Unlock()
-			fmt.Println(time.Since(e.Value.(*CacheItem).time), timeToLive)
 			if ok && time.Since(e.Value.(*CacheItem).time) >= e.Value.(*CacheItem).timeToLive && e.Value.(*CacheItem).timeToLive != -1 {
 				c.Remove(key)
 			}
