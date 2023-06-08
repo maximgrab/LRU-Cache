@@ -64,6 +64,9 @@ func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive tim
 	if k := !reflect.ValueOf(key).Comparable(); k {
 		return fmt.Errorf("AddWithTTL error, key type is uncomparable")
 	}
+	if timeToLive <= 0 {
+		return
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if e, ok := c.cache[key]; ok {
@@ -76,12 +79,20 @@ func (c *LRUCache) AddWithTTL(key interface{}, value interface{}, timeToLive tim
 	}
 	item := &CacheItem{key, value, time.Now(), timeToLive}
 	if timeToLive > 0 {
-		time.AfterFunc(timeToLive, func() { c.Remove(key) })
+		time.AfterFunc(timeToLive, func() {
+			c.mu.Lock()
+			e, ok := c.cache[key]
+			c.mu.Unlock()
+			if ok && e.Value.(*CacheItem).timeToLive != -1 {
+				c.Remove(key)
+			}
+		})
 	}
 	element := c.list.PushFront(item)
 	c.cache[key] = element
 	return nil
 }
+
 func (c *LRUCache) Add(key interface{}, value interface{}) (err error) {
 	if k := !reflect.ValueOf(key).Comparable(); k {
 		return fmt.Errorf("Add error, key type is uncomparable")
@@ -96,7 +107,7 @@ func (c *LRUCache) Add(key interface{}, value interface{}) (err error) {
 	if c.list.Len() >= c.maxItems {
 		c.removeLast()
 	}
-	item := &CacheItem{key, value, time.Now(), 0}
+	item := &CacheItem{key, value, time.Now(), -1}
 	element := c.list.PushFront(item)
 	c.cache[key] = element
 	return nil

@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGet(t *testing.T) {
@@ -54,6 +56,19 @@ func TestAdd(t *testing.T) {
 			t.Error("Add sync error")
 		}
 	}
+}
+
+func TestTTL(t *testing.T) {
+	c := NewLRUCache(5)
+	c.AddWithTTL("test", 5, time.Second)
+	c.Remove("test")
+	c.Add("test", 20)
+	<-time.After(2 * time.Second)
+	val, ok := c.Get("test")
+	assert.True(t, ok)
+	v, ok := val.(int)
+	assert.True(t, ok)
+	assert.Equal(t, 20, v)
 }
 
 func TestAddWithTTL(t *testing.T) {
